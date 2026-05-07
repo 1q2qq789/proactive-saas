@@ -128,17 +128,12 @@ def main() -> None:
         with open(args.context, "r", encoding="utf-8") as f:
             context_content = f.read()
 
-    # Custom checklists dir
-    from pathlib import Path
-    checklists_dir = Path(args.checklists) if args.checklists else None
-
     # Run scan
     if args.json:
         result = scan_content_json(
             content,
             mode=args.mode,
             context_content=context_content,
-            checklists_dir=checklists_dir,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
@@ -146,7 +141,6 @@ def main() -> None:
             content,
             mode=args.mode,
             context_content=context_content,
-            checklists_dir=checklists_dir,
         )
         print(report)
 
