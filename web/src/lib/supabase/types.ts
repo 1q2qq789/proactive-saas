@@ -1,9 +1,6 @@
 // web/src/lib/supabase/types.ts
-// 数据库类型定义 — 用于 IDE 提示，实际运行时用宽类型
-
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-// Simplified type for agent record used across the app
 export interface AgentRecord {
   id: string
   user_id: string
@@ -17,16 +14,45 @@ export interface AgentRecord {
   updated_at: string
 }
 
-// Simplified type for user record
 export interface UserRecord {
   id: string
   email: string
   name: string | null
   avatar_url: string | null
+  scan_quota_remaining: number
+  llm_quota_remaining: number
+  is_pro: boolean
   created_at: string
 }
 
-// Notification channel type
+export interface ScanRecord {
+  id: string
+  user_id: string
+  title: string | null
+  content_source: string | null
+  mode: 'keyword' | 'llm'
+  summary: {
+    total_checks: number
+    passed: number
+    warnings: number
+    errors: number
+  }
+  issues: ScanIssue[]
+  score_avg: number | null
+  score_max: number | null
+  duration_ms: number | null
+  created_at: string
+}
+
+export interface ScanIssue {
+  id: string
+  name: string
+  score: number
+  severity: 'warning' | 'error'
+  detail: string
+  suggestion: string | null
+}
+
 export type NotificationChannel = {
   type: 'telegram' | 'discord' | 'email' | 'webhook'
   label: string
@@ -34,7 +60,6 @@ export type NotificationChannel = {
   enabled: boolean
 }
 
-// Checklist item
 export type ChecklistItem = {
   id: string
   name: string

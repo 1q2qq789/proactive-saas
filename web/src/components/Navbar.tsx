@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/scan', label: 'Scan' },
   { href: '/agents', label: 'Agents' },
   { href: '/settings', label: 'Settings' },
 ]
