@@ -1,0 +1,32 @@
+# 一致性检查清单
+name: "一致性检查"
+description: "检查新内容与已有知识体系的一致性"
+weight: 7
+
+checks:
+  - id: cross_reference
+    name: "交叉引用一致性"
+    prompt: >
+      检查新引用的外部文档、链接、文件名、API名称是否真实存在。
+      如果新内容引用了其他文件中的章节、功能、数据表，
+      确认这些引用目标确实存在且名称一致。
+    severity: error
+    weight: 8
+
+  - id: version_conflict
+    name: "版本/时间线冲突"
+    prompt: >
+      检查新内容中提到的时间线、版本号、阶段划分，
+      是否与已有内容（项目计划、Changelog、路线图）一致。
+      例如：新内容说"版本2.0已上线"，但已有内容说"仍在开发中"。
+    severity: error
+    weight: 9
+
+  - id: tone_style
+    name: "语气/风格一致性"
+    prompt: >
+      检查新内容的语气、格式、表达风格是否与已有内容一致。
+      例如：学术报告突然出现口语化表达，中文文档混入英文术语不一致。
+      如果是在同一次会话中修改，检查是否有风格突变。
+    severity: warning
+    weight: 3

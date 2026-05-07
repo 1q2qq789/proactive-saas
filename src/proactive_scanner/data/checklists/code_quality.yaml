@@ -1,0 +1,52 @@
+# 代码质量检查清单
+name: "代码质量检查"
+description: "检查项目代码的安全性、健壮性和最佳实践"
+weight: 10
+
+checks:
+  - id: hardcoded_secrets
+    name: "硬编码密钥/凭证"
+    prompt: >
+      扫描代码中是否有硬编码的 API Key、Secret、Token、密码等凭证。
+      检查字符串中是否出现明显的密钥模式。
+      环境变量引用不视为问题。
+    severity: error
+    weight: 10
+
+  - id: error_handling
+    name: "错误处理完整性"
+    prompt: >
+      扫描代码中的 try-catch 块、API 路由、异步操作。
+      检查是否有：
+      1. try-catch 中只 console.error 没有返回错误响应
+      2. API 路由缺少错误状态码
+      3. 用户输入没有校验就直接使用
+    severity: error
+    weight: 9
+
+  - id: api_security
+    name: "API 安全性"
+    prompt: >
+      扫描 API 路由和数据库查询：
+      1. 是否有 RLS bypass
+      2. 是否有 SQL 注入风险
+      3. 是否需要鉴权的接口缺少 token 校验
+    severity: error
+    weight: 10
+
+  - id: data_validation
+    name: "数据校验缺失"
+    prompt: >
+      检查所有从请求体/查询参数获取用户输入的代码。
+      是否有类型检查、长度限制、格式校验？
+      是否有直接信任前端传入敏感字段？
+    severity: warning
+    weight: 8
+
+  - id: config_management
+    name: "配置管理"
+    prompt: >
+      检查 .env.example 是否存在，环境变量是否有默认值或检查。
+      检查依赖是否锁定版本。
+    severity: warning
+    weight: 5

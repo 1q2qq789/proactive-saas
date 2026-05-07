@@ -2,5 +2,9 @@ node_modules/
 .next/
 .vercel/
 *.local
+__pycache__/
+*.pyc
+dist/
+*.egg-info/
 
 .env.local

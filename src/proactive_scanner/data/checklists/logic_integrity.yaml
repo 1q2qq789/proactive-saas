@@ -1,0 +1,36 @@
+# 逻辑完整性检查清单
+name: "逻辑完整性检查"
+description: "检查论证链条是否完整，是否有追问漏洞"
+weight: 8
+
+checks:
+  - id: blind_spots
+    name: "追问盲区"
+    prompt: >
+      假设读者或面试官看到这段内容，他们会从哪些角度继续追问？
+      找出目前没有准备答案的追问方向。
+      要求：对每个发现的盲区，给出一个可能的追问示例。
+    severity: error
+    weight: 8
+
+  - id: logic_chain_gap
+    name: "逻辑链条断层"
+    prompt: >
+      检查内容中的推理/论证过程：
+      1. 是否有"A→D"的跳跃论证（跳过了B和C）？
+      2. 结论是否有足够的前提支撑？
+      3. 因果关系是否合理？
+      列出逻辑断层的位置。
+    severity: warning
+    weight: 7
+
+  - id: assumption_check
+    name: "隐藏假设"
+    prompt: >
+      检查内容中隐含的前提假设。例如：
+      1. "按照这个趋势…"——假设趋势不变
+      2. "用户会喜欢…"——假设需求存在
+      3. "成本会降低…"——假设技术曲线
+      列出所有未经论证的假设。
+    severity: warning
+    weight: 6
