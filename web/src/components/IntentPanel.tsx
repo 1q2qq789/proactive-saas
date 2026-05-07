@@ -1,84 +1,107 @@
 // web/src/components/IntentPanel.tsx
-// 意图面板 — 用户一进入页面就显示主动建议
+// 实时意图面板 — 根据用户当前输入内容，实时分析并给出主动建议
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/browser'
 import type { IntentOutput } from '@/lib/intent-engine'
 import { analyzeIntent } from '@/lib/intent-engine'
 
-export default function IntentPanel({ onScan }: { onScan?: (path: string) => void }) {
+interface Props {
+  content: string           // 用户当前输入的内容（实时传入）
+  userIntent?: string       // 用户自己描述的场景（可选）
+  onScanRequest?: (path: string) => void
+}
+
+export default function IntentPanel({ content, userIntent, onScanRequest }: Props) {
   const supabase = createClient()
   const [analysis, setAnalysis] = useState<IntentOutput | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [show, setShow] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
+  // 每次 content/userIntent 变化时，防抖 1.5s 后分析
   useEffect(() => {
-    loadAnalysis()
-  }, [])
+    if (!content && !userIntent) {
+      setShow(false)
+      return
+    }
 
-  const loadAnalysis = async () => {
-    setLoading(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
 
-    // 获取当前用户信息
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
+    debounceRef.current = setTimeout(async () => {
+      // 如果用户还没打几个字，不做分析
+      const text = content || userIntent || ''
+      if (text.length < 10) {
+        setShow(false)
+        return
+      }
 
-    // 获取最近的 Agent 和扫描记录
-    const { data: agents } = await supabase
-      .from('agents')
-      .select('name, checklists')
-      .order('updated_at', { ascending: false })
-      .limit(3)
+      // 获取扫描历史
+      const { data: recentScans } = await supabase
+        .from('scans')
+        .select('title, issues')
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-    const { data: recentScans } = await supabase
-      .from('scans')
-      .select('title, issues')
-      .order('created_at', { ascending: false })
-      .limit(5)
+      const scanHistory = (recentScans || []).map((s: any) => ({
+        filePath: s.title || 'unknown',
+        issues: (s.issues as any[]) || [],
+      }))
 
-    // 构建 context — 从用户的项目和扫描历史推理
-    const contextFiles = (agents || []).map((a: any) => ({
-      path: `Agent: ${a.name}`,
-      content: JSON.stringify(a.checklists || []),
-    }))
+      // 用意图引擎分析
+      const intent = userIntent || content.substring(0, 100)
+      const dummyFiles = []
+      if (content.length > 50) {
+        dummyFiles.push({
+          path: 'current-content',
+          content: content.substring(0, 500),
+        })
+      }
 
-    const scanHistory = (recentScans || []).map((s: any) => ({
-      filePath: s.title || 'unknown',
-      issues: (s.issues as any[]) || [],
-    }))
+      const result = analyzeIntent({
+        userIntent: intent,
+        contextFiles: dummyFiles,
+        scanHistory,
+      })
 
-    // 用意图引擎分析
-    const result = analyzeIntent({
-      userIntent: '研报 分析 文档', // 默认场景，可在页面中动态更新
-      contextFiles: contextFiles.length > 0 ? contextFiles : [
-        { path: 'no files yet', content: '' }
-      ],
-      scanHistory,
-    })
+      // 只有有实际发现时才展示
+      if (result.insights.length > 0 || result.risks.length > 0) {
+        setAnalysis(result)
+        setShow(true)
+      } else {
+        setShow(false)
+      }
+    }, 1500)
 
-    setAnalysis(result)
-    setLoading(false)
-  }
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [content, userIntent])
 
-  if (loading) return null
-
-  if (!analysis || (analysis.insights.length === 0 && analysis.risks.length === 0)) {
-    return null
-  }
+  if (!show || dismissed) return null
 
   return (
-    <div className="rounded-lg border border-[var(--accent)]/20 bg-[var(--accent-bg)] p-4 mb-6 animate-fadeIn">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm">💡</span>
-        <span className="font-semibold text-sm">Intent Insights</span>
+    <div className="rounded-lg border border-[var(--accent)]/20 bg-[var(--accent-bg)] p-3 mb-4 animate-fadeIn">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs">💡</span>
+          <span className="font-semibold text-xs">我发现了一些你可以关注的点</span>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Insights */}
-      {analysis.insights.length > 0 && (
-        <div className="mb-3">
+      {analysis && analysis.insights.length > 0 && (
+        <div className="mb-2">
           {analysis.insights.map((insight, i) => (
-            <p key={i} className="text-xs text-[var(--text-secondary)] mb-1">
+            <p key={i} className="text-xs text-[var(--text-secondary)]">
               • {insight}
             </p>
           ))}
@@ -86,51 +109,33 @@ export default function IntentPanel({ onScan }: { onScan?: (path: string) => voi
       )}
 
       {/* Risks */}
-      {analysis.risks.length > 0 && (
-        <div className="space-y-2 mb-3">
-          <p className="text-xs font-medium text-[var(--yellow)]">⚠ 需要注意</p>
-          {analysis.risks.map((risk, i) => (
-            <div key={i} className="bg-[var(--bg-primary)] rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+      {analysis && analysis.risks.length > 0 && (
+        <div className="space-y-1.5 mb-2">
+          {analysis.risks.slice(0, 2).map((risk, i) => (
+            <div key={i} className="bg-[var(--bg-primary)] rounded-lg px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${
                   risk.severity === 'high'
                     ? 'bg-[var(--red-bg)] text-[var(--red)]'
                     : risk.severity === 'medium'
                     ? 'bg-[var(--yellow-bg)] text-[var(--yellow)]'
                     : 'bg-[var(--bg-hover)] text-[var(--text-muted)]'
                 }`}>
-                  {risk.severity === 'high' ? 'High' : risk.severity === 'medium' ? 'Med' : 'Low'}
+                  {risk.severity.toUpperCase()}
                 </span>
-                <span className="text-xs">{risk.description}</span>
+                <span className="text-xs text-[var(--text-primary)]">{risk.description}</span>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] ml-1">
-                💡 {risk.suggestion}
-              </p>
+              <p className="text-[10px] text-[var(--text-muted)] ml-1">{risk.suggestion}</p>
             </div>
           ))}
         </div>
       )}
 
       {/* Suggestions */}
-      {analysis.suggestions.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-[var(--accent)]">建议下一步</p>
-          {analysis.suggestions.map((s, i) => (
-            <p key={i} className="text-xs text-[var(--text-secondary)]">
-              {i + 1}. {s}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Quick scan button */}
-      {analysis.nextScanPath && onScan && (
-        <button
-          onClick={() => onScan(analysis.nextScanPath!)}
-          className="mt-3 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
-        >
-          Scan suggested file →
-        </button>
+      {analysis && analysis.suggestions.length > 0 && (
+        <p className="text-xs text-[var(--accent)]">
+          💡 {analysis.suggestions[0]}
+        </p>
       )}
     </div>
   )
