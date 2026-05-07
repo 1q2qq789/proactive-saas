@@ -5,6 +5,7 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/browser'
+import IntentPanel from '@/components/IntentPanel'
 
 interface ScanIssue {
   id: string
@@ -91,6 +92,7 @@ export default function ScanPage() {
           Paste your content or upload a file to scan for quality issues
         </p>
       </div>
+      <IntentPanel />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Input */}
